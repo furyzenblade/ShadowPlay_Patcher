@@ -35,7 +35,7 @@ After the check clears, capturing will silently resume. When saving a replay, th
 This check works because browsers appear to only keep the the WidevineCDM (Content Decryption Module) loaded while it's actually needed to decrypt Widevine content.
 
 Relevant functions used:
-- KERNEL32 `CreateToolhelp32Snapsho`, `Process32FirstW`, `Process32NextW`, `Module32FirstW`, `Module32NextW`
+- KERNEL32 `CreateToolhelp32Snapshot`, `Process32FirstW`, `Process32NextW`, `Module32FirstW`, `Module32NextW`
 
 ### The Patch
 
@@ -44,7 +44,7 @@ By just finding the correct process and modifying its loaded instance of the
 - KERNEL32 `Process32FirstW`
 
 functions to immediately return, both checks will never trigger.  
-This is also elegant because it's robust against Nvidia driver upgrades, and should work against all versions of the Nvidia driver that don't directly change how the checks work or have major differences in the process structure.
+This is also elegant because it's robust against Nvidia driver updates, and should work against all versions of the Nvidia driver that don't directly change how the checks work or have major differences in the process structure.
 
 ### Caveats
 In testing, an issue was encountered where the Netflix Windows desktop app would fail to play video while the patch was injected, but this has disappeared when updating the Netflix app via the Microsoft store.
