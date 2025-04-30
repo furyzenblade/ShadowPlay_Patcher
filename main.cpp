@@ -1,11 +1,11 @@
 #include "utils.h"
 #include "memory.h"
 
-#include <iostream>   // For std::cout
-#include <array>      // For std::array
+#include <iostream>  
+#include <array>     
+#include <chrono>
 
 // TODO: Use logging lib for nicer (error) messages in the console.
-
 int patchGetWindowDisplayAffinity(HANDLE hProcess) {
     // TODO: Refactor logging
     uintptr_t remoteUser32Base = getRemoteModuleBaseAddress(hProcess, L"USER32.dll");
@@ -36,7 +36,7 @@ int patchGetWindowDisplayAffinity(HANDLE hProcess) {
             0x48, 0x31, 0xC0,   // xor rax, rax
             0xC3                // ret
         })
-    ) {
+        ) {
         std::cout << "Error: Could not write payload to allocated memory region" << std::endl;
     }
     else {
@@ -96,7 +96,7 @@ int patchKernel32Module32FirstW(HANDLE hProcess) {
             0x48, 0x31, 0xC0,   // xor rax, rax
             0xC3                // ret
         })
-    ) {
+        ) {
         std::cout << "Error: Could not write payload to allocated memory region" << std::endl;
     }
     else {
@@ -126,54 +126,77 @@ int patchKernel32Module32FirstW(HANDLE hProcess) {
     return 0;
 }
 
-int mainWrap() {
-    // Get the correct nvcontainer.exe process to patch
-    std::vector<DWORD> processIDs = getProcessesByName(L"nvcontainer.exe");
+void terminateSP() {
 
-    std::vector<DWORD> filteredProcessIDs;
+    std::vector<DWORD> processIDs = getProcessesByName(L"nvcontainer.exe");
     for (DWORD processID : processIDs) {
-        if (isModuleLoaded(processID, L"nvd3dumx.dll")) {
-            filteredProcessIDs.push_back(processID);
+        HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, processID);
+        if (hProcess) {
+            if (TerminateProcess(hProcess, 0)) {
+                std::cout << "Successfully terminated process PID: " << processID << std::endl;
+            }
+            else {
+                std::cout << "Error terminating process PID: " << processID << std::endl;
+            }
+            CloseHandle(hProcess);
+        }
+        else {
+            std::cout << "Error opening process PID: " << processID << std::endl;
         }
     }
-    if (filteredProcessIDs.size() != 1) {
-        std::cout << "Error: Expected exactly one process with the module nvd3dumx.dll loaded, found " << filteredProcessIDs.size() << "." << std::endl;
-        return 1;
+}
+int mainWrap() {
+    terminateSP();
+    Sleep(2000);
+    while (true) {
+        std::vector<DWORD> processIDs = getProcessesByName(L"nvcontainer.exe");
+        std::vector<DWORD> filteredProcessIDs;
+        for (DWORD processID : processIDs) {
+            if (isModuleLoaded(processID, L"nvd3dumx.dll")) {
+                filteredProcessIDs.push_back(processID);
+            }
+        }
+
+        if (filteredProcessIDs.empty()) {
+            std::cout << "No process with the module nvd3dumx.dll loaded found." << std::endl;
+        }
+        else {
+            std::cout << "Found " << filteredProcessIDs.size() << " process(es) with the module nvd3dumx.dll loaded." << std::endl;
+        }
+
+        int errorCode = 0;
+        for (DWORD nvcontainerProcessID : filteredProcessIDs) {
+            std::cout << "Patching process with PID: " << nvcontainerProcessID << std::endl;
+            HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, nvcontainerProcessID);
+            if (!hProcess) {
+                std::cout << "Error: Could not open process PID: " << nvcontainerProcessID << std::endl;
+                continue;  
+            }
+            std::cout << std::endl;
+            errorCode = patchGetWindowDisplayAffinity(hProcess);
+            if (errorCode) {
+                std::cout << "Error: Something went wrong while applying the first patch for PID: " << nvcontainerProcessID << ". Skipping this process." << std::endl;
+                CloseHandle(hProcess);
+                continue;
+            }
+            std::cout << std::endl;
+            errorCode = patchKernel32Module32FirstW(hProcess);
+            if (errorCode) {
+                std::cout << "Error: Something went wrong while applying the second patch for PID: " << nvcontainerProcessID << ". Skipping this process." << std::endl;
+                CloseHandle(hProcess);
+                continue;
+            }
+            std::cout << "Process with PID " << nvcontainerProcessID << " patched successfully." << std::endl;
+
+            CloseHandle(hProcess);
+
+            return 0; 
+        }
+		Sleep(500);
     }
 
-    DWORD nvcontainerProcessID = filteredProcessIDs[0];
-    std::cout << "Info: Correct process has been found. PID: " << nvcontainerProcessID << std::endl;
-
-    // Attach
-    HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, nvcontainerProcessID);
-    if (!hProcess) {
-        std::cout << "Error: Could not open process" << std::endl;
-        return 1;
-    }
-
-    int errorCode = 0;
-
-    // Apply 2 patches
-    std::cout << std::endl;
-    errorCode = patchGetWindowDisplayAffinity(hProcess);
-    if (errorCode) {
-        std::cout << "Error: Something went wrong while applying the first patch. Exiting now." << std::endl;
-        CloseHandle(hProcess);
-        return errorCode;
-    }
-
-    std::cout << std::endl;
-    errorCode = patchKernel32Module32FirstW(hProcess);
-    if (errorCode) {
-        std::cout << "Error: Something went wrong while applying the second patch. Exiting now." << std::endl;
-        CloseHandle(hProcess);
-        return errorCode;
-    }
-
-    CloseHandle(hProcess);
     return 0;
 }
-
 int main(int argc, char* argv[]) {
     auto args = parseCommandLineArgs(argc, argv);
     bool waitForKeyPress = args.find("--no-wait-for-keypress") == args.end();
