@@ -27,6 +27,9 @@ You may want to auto-start the patcher, for example by dropping the exe (or a sh
 `%appdata%\Microsoft\Windows\Start Menu\Programs\Startup`  
 You can add the CLI argument `--no-wait-for-keypress` to the shortcut target to make the window automatically close after patching has finished.
 
+**Alternatively** the same patch is also available as a Windhawk mod instead of a standalone exe: https://windhawk.net/  
+This mod patches the same checks, but Windhawk provides autostart functionality and the ability to unload/update the mod at any time without a driver/system restart.  
+
 ## How to compile
 1. Open the solution file in VS
 2. Make sure to have installed:
