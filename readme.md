@@ -1,3 +1,7 @@
+**NOTICE:** For a temporary workaround with media playing in chrome still disabling shadowplay with this mod active:  
+Navigate to `chrome://flags/#enable-hardware-secure-decryption-experiment` and set the highlighted experiment to Disabled, then restart your browser.  
+We will try to update this application and the windhawk patch soon for a proper fix.
+
 # ShadowPlay Patcher
 
 This program injects into Nvidia ShadowPlay to prevent ShadowPlay Instant Replay from disabling itself.  
