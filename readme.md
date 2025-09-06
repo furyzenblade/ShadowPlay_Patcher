@@ -4,7 +4,7 @@ We will try to update this application and the windhawk patch soon for a proper 
 
 # ShadowPlay Patcher
 
-This program injects into Nvidia ShadowPlay to prevent ShadowPlay Instant Replay from disabling itself.  
+This program injects into Nvidia ShadowPlay (also known as "Instant Replay" in the new Nvidia App) to prevent ShadowPlay Instant Replay from disabling itself.  
 No more missing good clips because your computer is forbidding you from recording!
 
 ## The situation
